@@ -1,0 +1,140 @@
+import express, { Request, Response } from "express";
+import { v4 as uuidv4 } from "uuid";
+import { SignUpRequestBody } from "./authRouterInterface";
+import { hashPassword } from "../../utility/bcryptHelper";
+import {
+  createNewUser,
+  findUserByEmail,
+  updateUserDetails,
+} from "../../schema-Model/user/userModel";
+import {
+  buildErrorRespone,
+  buildSuccessRespone,
+} from "../../utility/responseHelper";
+import {
+  createNewSession,
+  deletePreviousAccessTokens,
+  findUserByToken,
+} from "../../schema-Model/sessionTokens/sessionModel";
+import {
+  sendAccountVerifiedEmail,
+  sendResetPasswordEmail,
+  sendVerificationLinkEmail,
+} from "../../utility/nodemailerHelper";
+
+export const authRouter = express.Router();
+
+authRouter.post(
+  "/signup",
+  async (req: Request<{}, {}, SignUpRequestBody>, res: Response) => {
+    try {
+      const { password, email, ...rest } = req.body;
+      const existingUser = await findUserByEmail(email);
+      if (existingUser) {
+        buildErrorRespone(res, "User already exists with this email.");
+        return;
+      }
+      if (!existingUser) {
+        const hashedPassword = hashPassword(password);
+        if (hashedPassword) {
+          const newUser = await createNewUser({
+            ...rest,
+            email,
+            password: hashedPassword,
+          });
+          if (newUser?._id) {
+            const secureID = uuidv4();
+            const newUserSession = await createNewSession({
+              email: email,
+              token: secureID,
+            });
+            // console.log(newUser);
+
+            if (newUserSession._id) {
+              const verificationUrl = `${process.env.CLIENT_ROOT_URL}/verify-email?e=${newUser.email}&id=${secureID}`;
+              // sending email with the help of nodemailer
+              sendVerificationLinkEmail(newUser, verificationUrl);
+            }
+            newUser._id
+              ? buildSuccessRespone(
+                  res,
+                  {},
+                  "Please check your email inbox/spam to verify your account."
+                )
+              : buildErrorRespone(
+                  res,
+                  "Could not create user.Please contact administrator."
+                );
+          }
+        }
+      }
+    } catch (error) {
+      if ((error as any).code === "E11000") {
+        (error as any).message = "User with this email already exists.";
+      }
+      if (error instanceof Error) {
+        console.log(error.message);
+        buildErrorRespone(res, error.message);
+      }
+    }
+  }
+);
+
+interface VerifyUserBody {
+  userEmail: string;
+  sessionToken: string;
+}
+
+// verify user from the email
+authRouter.post("/verifyuser", async (req: Request, res: Response) => {
+  try {
+    const { userEmail, sessionToken } = req.body as VerifyUserBody;
+    const [findUser, findToken] = await Promise.all([
+      findUserByEmail(userEmail),
+      findUserByToken(sessionToken),
+    ]);
+    if (!findToken || !findUser) {
+      return buildErrorRespone(
+        res,
+        "Can not verify user. Please contact admin."
+      );
+    }
+    if (findUser && findToken) {
+      const [deleteToken, updateUserVerification] = await Promise.all([
+        deletePreviousAccessTokens(userEmail),
+        updateUserDetails(userEmail, { verified: true }),
+      ]);
+      const loginUrl = `${process.env.CLIENT_ROOT_URL}`;
+      sendAccountVerifiedEmail(findUser, loginUrl);
+      return buildSuccessRespone(res, {}, "");
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error.message);
+      buildErrorRespone(res, error.message);
+    }
+  }
+});
+
+// send reset password email
+authRouter.post("/reset-password", async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    const secureID = uuidv4();
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return buildErrorRespone(res, "Please enter valid email.");
+    }
+    if (user) {
+      const passWordResetUrl = `${process.env.CLIENT_ROOT_URL}/new-Password?e=${email}&id=${secureID}`;
+      await createNewSession({ email, token: secureID });
+      sendResetPasswordEmail(user, passWordResetUrl);
+      buildSuccessRespone(res, {}, "Verification Email sent.");
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error.message);
+      buildErrorRespone(res, error.message);
+    }
+  }
+});
