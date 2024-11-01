@@ -116,32 +116,32 @@ export const sendResetPasswordEmail = (user: User, resetUrl: string) => {
   sendEmail(emailFormat);
 };
 
-// export const sendPasswordChanged = (user, resetUrl) => {
-//   const { email, firstName, lastName } = user;
+export const sendPasswordChanged = (user: User, loginURL: string) => {
+  const { email, firstName, lastName } = user;
 
-//   const emailFormat = {
-//     from: `Penny Pilot<${process.env.SMTP_USER}>`,
-//     to: email,
-//     subject: "Password Reset Successfully",
-//     html: `
-//     <table style="width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; border-collapse: collapse;">
-//         <tr>
-//             <td style="text-align: center;">
-//                 <h1>Password Reset Successfully</h1>
-//             </td>
-//         </tr>
-//         <tr>
-//             <td>
-//                 <p>Dear ${firstName + " " + lastName},</p>
-//                 <p>Your password was changed successfully. </p>
+  const emailFormat = {
+    from: `Penny Pilot<${process.env.SMTP_USER}>`,
+    to: email,
+    subject: "Password Reset Successfully",
+    html: `
+    <table style="width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; border-collapse: collapse;">
+        <tr>
+            <td style="text-align: center;">
+                <h1>Password Reset Successfully</h1>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>Dear ${firstName + " " + lastName},</p>
+                <p>Your password was changed successfully. </p>
+                <p><a href="${loginURL}" target="_blank" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: #fff; text-decoration: none;">Login Now</a></p>
+                <p>If you did not made this change please contact administrator immediately.</p>
+                <p>Thank you,<br> Penny Pilot</p>
+            </td>
+        </tr>
+    </table>
+    `,
+  };
 
-//                 <p>If you did not made this change please contact administrator immediately.</p>
-//                 <p>Thank you,<br> Penny Pilot</p>
-//             </td>
-//         </tr>
-//     </table>
-//     `,
-//   };
-
-//   sendEmail(emailFormat);
-// };
+  sendEmail(emailFormat);
+};

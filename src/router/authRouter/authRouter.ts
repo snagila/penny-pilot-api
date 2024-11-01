@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { SignUpRequestBody } from "./authRouterInterface";
-import { hashPassword } from "../../utility/bcryptHelper";
+import { comparePassword, hashPassword } from "../../utility/bcryptHelper";
 import {
   createNewUser,
   findUserByEmail,
@@ -18,6 +18,7 @@ import {
 } from "../../schema-Model/sessionTokens/sessionModel";
 import {
   sendAccountVerifiedEmail,
+  sendPasswordChanged,
   sendResetPasswordEmail,
   sendVerificationLinkEmail,
 } from "../../utility/nodemailerHelper";
@@ -129,8 +130,76 @@ authRouter.post("/reset-password", async (req: Request, res: Response) => {
       const passWordResetUrl = `${process.env.CLIENT_ROOT_URL}/new-Password?e=${email}&id=${secureID}`;
       await createNewSession({ email, token: secureID });
       sendResetPasswordEmail(user, passWordResetUrl);
-      buildSuccessRespone(res, {}, "Verification Email sent.");
+      console.log(user);
+      buildSuccessRespone(res, {}, "Password reset Email sent.");
     }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error.message);
+      buildErrorRespone(res, error.message);
+    }
+  }
+});
+
+// change new password
+authRouter.post("/new-Password", async (req: Request, res: Response) => {
+  try {
+    const { newPassword, email, token } = req.body;
+    const [userCheck, tokenCheck] = await Promise.all([
+      findUserByEmail(email),
+      findUserByToken(token),
+    ]);
+    if (!userCheck || !tokenCheck) {
+      return buildErrorRespone(
+        res,
+        "Invalid credentials. Please contact admin."
+      );
+    }
+    if (userCheck && tokenCheck) {
+      const hashedPassWord = hashPassword(newPassword);
+      const [changePassword, deleteToken] = await Promise.all([
+        updateUserDetails(email, { password: hashedPassWord }),
+        deletePreviousAccessTokens(email),
+      ]);
+      if (!changePassword || !deleteToken) {
+        return buildErrorRespone(
+          res,
+          "Something went wrong. Please try again."
+        );
+      }
+      if (changePassword) {
+        const loginURL = `${process.env.CLIENT_ROOT_URL}`;
+        sendPasswordChanged(userCheck, loginURL);
+        return buildSuccessRespone(res, {}, "Password changed successfully.");
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error.message);
+      buildErrorRespone(res, error.message);
+    }
+  }
+});
+
+// loginUser
+authRouter.post("/login", async (req: Request, res: Response) => {
+  const { email, password: plainPassword } = req.body;
+  const findUser = await findUserByEmail(email);
+  if (!findUser) {
+    throw new Error("Invalid credentials");
+  }
+  if (findUser && findUser._id) {
+    const passwordMatch = comparePassword(plainPassword, findUser.password);
+    const userObj = findUser.toObject();
+    const { password, ...rest } = userObj;
+    if (!passwordMatch) {
+      throw new Error("Invalid Credentials");
+    }
+    if (passwordMatch) {
+      return buildSuccessRespone(res, rest, "");
+    }
+  }
+  try {
   } catch (error) {
     if (error instanceof Error) {
       console.log(error.message);
