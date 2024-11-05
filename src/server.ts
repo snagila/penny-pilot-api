@@ -2,7 +2,8 @@ import express from "express";
 import cors from "cors";
 import "dotenv/config";
 import { connectToMongoDb } from "./config/dbConfig";
-import { authRouter } from "./router/authRouter/authRouter";
+import { authRouter } from "./router/authRouter";
+import { transactionRouter } from "./router/transactionRouter";
 
 const app = express();
 const PORT = process.env.PORT || 8001;
@@ -13,6 +14,7 @@ app.use(cors());
 
 // Routes
 app.use("/auth", authRouter);
+app.use("/transaction", transactionRouter);
 
 // connect to database
 connectToMongoDb();

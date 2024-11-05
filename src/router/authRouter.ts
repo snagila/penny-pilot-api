@@ -1,87 +1,83 @@
 import express, { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
-import { SignUpRequestBody } from "./authRouterInterface";
-import { comparePassword, hashPassword } from "../../utility/bcryptHelper";
+import { comparePassword, hashPassword } from "../utility/bcryptHelper";
 import {
   createNewUser,
   findUserByEmail,
   updateUserDetails,
-} from "../../schema-Model/user/userModel";
+} from "../schema-Model/user/userModel";
 import {
   buildErrorRespone,
   buildSuccessRespone,
-} from "../../utility/responseHelper";
+} from "../utility/responseHelper";
 import {
   createNewSession,
   deletePreviousAccessTokens,
   findUserByToken,
-} from "../../schema-Model/sessionTokens/sessionModel";
+} from "../schema-Model/sessionTokens/sessionModel";
 import {
   sendAccountVerifiedEmail,
   sendPasswordChanged,
   sendResetPasswordEmail,
   sendVerificationLinkEmail,
-} from "../../utility/nodemailerHelper";
-import { generateJWTs } from "../../utility/jwtHelper";
-import { authorizeUser } from "../../middleWares/authMiddleWare";
+} from "../utility/nodemailerHelper";
+import { generateJWTs } from "../utility/jwtHelper";
+import { authorizeUser } from "../middleWares/authMiddleWare";
 
 export const authRouter = express.Router();
 
-authRouter.post(
-  "/signup",
-  async (req: Request<{}, {}, SignUpRequestBody>, res: Response) => {
-    try {
-      const { password, email, ...rest } = req.body;
-      const existingUser = await findUserByEmail(email);
-      if (existingUser) {
-        buildErrorRespone(res, "User already exists with this email.");
-        return;
-      }
-      if (!existingUser) {
-        const hashedPassword = hashPassword(password);
-        if (hashedPassword) {
-          const newUser = await createNewUser({
-            ...rest,
-            email,
-            password: hashedPassword,
+authRouter.post("/signup", async (req: Request, res: Response) => {
+  try {
+    const { password, email, ...rest } = req.body;
+    const existingUser = await findUserByEmail(email);
+    if (existingUser) {
+      buildErrorRespone(res, "User already exists with this email.");
+      return;
+    }
+    if (!existingUser) {
+      const hashedPassword = hashPassword(password);
+      if (hashedPassword) {
+        const newUser = await createNewUser({
+          ...rest,
+          email,
+          password: hashedPassword,
+        });
+        if (newUser?._id) {
+          const secureID = uuidv4();
+          const newUserSession = await createNewSession({
+            email: email,
+            token: secureID,
           });
-          if (newUser?._id) {
-            const secureID = uuidv4();
-            const newUserSession = await createNewSession({
-              email: email,
-              token: secureID,
-            });
-            // console.log(newUser);
+          // console.log(newUser);
 
-            if (newUserSession._id) {
-              const verificationUrl = `${process.env.CLIENT_ROOT_URL}/verify-email?e=${newUser.email}&id=${secureID}`;
-              // sending email with the help of nodemailer
-              sendVerificationLinkEmail(newUser, verificationUrl);
-            }
-            newUser._id
-              ? buildSuccessRespone(
-                  res,
-                  {},
-                  "Please check your email inbox/spam to verify your account."
-                )
-              : buildErrorRespone(
-                  res,
-                  "Could not create user.Please contact administrator."
-                );
+          if (newUserSession._id) {
+            const verificationUrl = `${process.env.CLIENT_ROOT_URL}/verify-email?e=${newUser.email}&id=${secureID}`;
+            // sending email with the help of nodemailer
+            sendVerificationLinkEmail(newUser, verificationUrl);
           }
+          newUser._id
+            ? buildSuccessRespone(
+                res,
+                {},
+                "Please check your email inbox/spam to verify your account."
+              )
+            : buildErrorRespone(
+                res,
+                "Could not create user.Please contact administrator."
+              );
         }
       }
-    } catch (error) {
-      if ((error as any).code === "E11000") {
-        (error as any).message = "User with this email already exists.";
-      }
-      if (error instanceof Error) {
-        console.log(error.message);
-        buildErrorRespone(res, error.message);
-      }
+    }
+  } catch (error) {
+    if ((error as any).code === "E11000") {
+      (error as any).message = "User with this email already exists.";
+    }
+    if (error instanceof Error) {
+      console.log(error.message);
+      buildErrorRespone(res, error.message);
     }
   }
-);
+});
 
 interface VerifyUserBody {
   userEmail: string;
@@ -225,3 +221,31 @@ authRouter.get("/", authorizeUser, (req: Request, res: Response) => {
     }
   }
 });
+
+// logout user
+authRouter.post(
+  "/logout",
+  authorizeUser,
+  async (req: Request, res: Response) => {
+    try {
+      if (req.userInfo) {
+        const { email } = req.userInfo;
+        console.log(email);
+        if (email) {
+          const [deleteSession, deleteRefreshJwt] = await Promise.all([
+            deletePreviousAccessTokens(email),
+            updateUserDetails(email, { refreshJWT: "" }),
+          ]);
+          if (deleteSession && deleteRefreshJwt) {
+            buildSuccessRespone(res, "", "");
+          }
+        }
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.log(error);
+        buildErrorRespone(res, error.message);
+      }
+    }
+  }
+);

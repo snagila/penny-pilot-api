@@ -13,7 +13,7 @@ export interface user extends Document {
 // Email validation regex
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const userSchema: Schema = new Schema({
+const userSchema: Schema = new Schema<user>({
   firstName: {
     type: String,
     required: true,
