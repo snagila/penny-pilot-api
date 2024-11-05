@@ -7,6 +7,7 @@ export interface user extends Document {
   phone: number;
   password: string;
   verified: boolean;
+  refreshJWT: string;
 }
 
 // Email validation regex
@@ -42,6 +43,10 @@ const userSchema: Schema = new Schema({
   verified: {
     type: Boolean,
     default: false,
+  },
+  refreshJWT: {
+    type: String,
+    default: "",
   },
 });
 

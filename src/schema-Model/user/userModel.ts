@@ -1,7 +1,7 @@
 import userSchema, { user } from "./userSchema";
 
 // find user by E-MAIL
-export const findUserByEmail = (userEmail: string) => {
+export const findUserByEmail = (userEmail: string): Promise<user | null> => {
   return userSchema.findOne({ email: userEmail });
 };
 

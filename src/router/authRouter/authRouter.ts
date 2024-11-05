@@ -22,6 +22,8 @@ import {
   sendResetPasswordEmail,
   sendVerificationLinkEmail,
 } from "../../utility/nodemailerHelper";
+import { generateJWTs } from "../../utility/jwtHelper";
+import { authorizeUser } from "../../middleWares/authMiddleWare";
 
 export const authRouter = express.Router();
 
@@ -190,19 +192,35 @@ authRouter.post("/login", async (req: Request, res: Response) => {
   }
   if (findUser && findUser._id) {
     const passwordMatch = comparePassword(plainPassword, findUser.password);
-    const userObj = findUser.toObject();
-    const { password, ...rest } = userObj;
+
+    // THIS IS THE AY TO CONVERT MONGOOSE RETURN FILE INTO OBJECT FORMAT
+    // const userObj = findUser.toObject();
+    // const { password, ...rest } = userObj;
+
     if (!passwordMatch) {
       throw new Error("Invalid Credentials");
     }
     if (passwordMatch) {
-      return buildSuccessRespone(res, rest, "");
+      const jwts = await generateJWTs(email);
+      return buildSuccessRespone(res, jwts, "");
     }
   }
   try {
   } catch (error) {
     if (error instanceof Error) {
       console.log(error.message);
+      buildErrorRespone(res, error.message);
+    }
+  }
+});
+
+// get user Details
+authRouter.get("/", authorizeUser, (req: Request, res: Response) => {
+  try {
+    buildSuccessRespone(res, req.userInfo, "");
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error);
       buildErrorRespone(res, error.message);
     }
   }
