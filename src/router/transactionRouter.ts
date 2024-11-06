@@ -4,7 +4,11 @@ import {
   buildErrorRespone,
   buildSuccessRespone,
 } from "../utility/responseHelper";
-import { createNewTransaction } from "../schema-Model/transaction/transactionModel";
+import {
+  createNewTransaction,
+  deleteTransactions,
+  getAllTransactions,
+} from "../schema-Model/transaction/transactionModel";
 
 export const transactionRouter = express.Router();
 
@@ -15,10 +19,48 @@ transactionRouter.post(
     try {
       const newTransaction = await createNewTransaction({
         ...req.body,
-        userId: req.userInfo?._id,
+        userEmail: req.userInfo?.email,
       });
       if (newTransaction) {
         buildSuccessRespone(res, {}, "");
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.log(error.message);
+        buildErrorRespone(res, error.message);
+      }
+    }
+  }
+);
+
+transactionRouter.get(
+  "/",
+  authorizeUser,
+  async (req: Request, res: Response) => {
+    try {
+      if (req.userInfo?.email) {
+        const allTransactions = await getAllTransactions(req.userInfo?.email);
+        if (allTransactions) {
+          return buildSuccessRespone(res, allTransactions, "");
+        }
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.log(error.message);
+        buildErrorRespone(res, error.message);
+      }
+    }
+  }
+);
+
+transactionRouter.delete(
+  "/",
+  authorizeUser,
+  async (req: Request, res: Response) => {
+    try {
+      const deleteTransaction = await deleteTransactions(req.body);
+      if (deleteTransaction) {
+        return buildSuccessRespone(res, deleteTransaction, "");
       }
     } catch (error) {
       if (error instanceof Error) {

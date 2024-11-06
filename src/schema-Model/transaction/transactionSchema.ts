@@ -5,7 +5,8 @@ export interface Transaction extends Document {
   description: string;
   amount: number;
   date: Date;
-  userId: Types.ObjectId;
+  // userId: Types.ObjectId;
+  userEmail: string;
 }
 
 const transactionSchema = new Schema<Transaction>({
@@ -27,10 +28,14 @@ const transactionSchema = new Schema<Transaction>({
     type: Date,
     required: true,
   },
-  userId: {
-    type: Schema.Types.ObjectId,
+  // userId: {
+  //   type: Schema.Types.ObjectId,
+  //   required: true,
+  //   ref: "user",
+  // },
+  userEmail: {
+    type: String,
     required: true,
-    ref: "user",
   },
 });
 
