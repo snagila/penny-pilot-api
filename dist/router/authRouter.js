@@ -147,25 +147,25 @@ exports.authRouter.post("/new-Password", async (req, res) => {
 });
 // loginUser
 exports.authRouter.post("/login", async (req, res) => {
-    const { email, password: plainPassword } = req.body;
-    const findUser = await (0, userModel_1.findUserByEmail)(email);
-    if (!findUser) {
-        throw new Error("Invalid credentials");
-    }
-    if (findUser && findUser._id) {
-        const passwordMatch = (0, bcryptHelper_1.comparePassword)(plainPassword, findUser.password);
-        // THIS IS THE AY TO CONVERT MONGOOSE RETURN FILE INTO OBJECT FORMAT
-        // const userObj = findUser.toObject();
-        // const { password, ...rest } = userObj;
-        if (!passwordMatch) {
-            throw new Error("Invalid Credentials");
-        }
-        if (passwordMatch) {
-            const jwts = await (0, jwtHelper_1.generateJWTs)(email);
-            return (0, responseHelper_1.buildSuccessRespone)(res, jwts, "");
-        }
-    }
     try {
+        const { email, password: plainPassword } = req.body;
+        const findUser = await (0, userModel_1.findUserByEmail)(email);
+        if (!findUser) {
+            throw new Error("Invalid credentials ");
+        }
+        if (findUser && findUser._id) {
+            const passwordMatch = (0, bcryptHelper_1.comparePassword)(plainPassword, findUser.password);
+            // THIS IS THE AY TO CONVERT MONGOOSE RETURN FILE INTO OBJECT FORMAT
+            // const userObj = findUser.toObject();
+            // const { password, ...rest } = userObj;
+            if (!passwordMatch) {
+                throw new Error("Invalid Credentials");
+            }
+            if (passwordMatch) {
+                const jwts = await (0, jwtHelper_1.generateJWTs)(email);
+                return (0, responseHelper_1.buildSuccessRespone)(res, jwts, "");
+            }
+        }
     }
     catch (error) {
         if (error instanceof Error) {
