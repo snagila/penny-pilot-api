@@ -92,6 +92,7 @@ authRouter.post("/verifyuser", async (req: Request, res: Response) => {
       findUserByEmail(userEmail),
       findUserByToken(sessionToken),
     ]);
+
     if (!findToken || !findUser) {
       return buildErrorRespone(
         res,
@@ -105,7 +106,11 @@ authRouter.post("/verifyuser", async (req: Request, res: Response) => {
       ]);
       const loginUrl = `${process.env.CLIENT_ROOT_URL}`;
       sendAccountVerifiedEmail(findUser, loginUrl);
-      return buildSuccessRespone(res, {}, "");
+      return buildSuccessRespone(
+        res,
+        {},
+        "Thank You for verifying your account."
+      );
     }
   } catch (error) {
     if (error instanceof Error) {
